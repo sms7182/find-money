@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -15,6 +16,12 @@ func kafkaWriter(kafkaURL string, kafkaTopic string) *kafka.Writer {
 		Topic:    kafkaTopic,
 		Balancer: &kafka.LeastBytes{},
 	}
+}
+
+var upgrader = websocket.Upgrader{}
+
+func handleMessage(writer *kafka.Writer) {
+	conn, _ := upgrader.Upgrade()
 }
 
 func main() {
