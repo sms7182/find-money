@@ -30,13 +30,18 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type BinanceTickerEvent struct {
-	EventType string `json:"e"` // Event type
-	EventTime int64  `json:"E"` // Event time
-	Symbol    string `json:"s"` // Symbol
-	LastPrice string `json:"c"` // Last price
-	BidPrice  string `json:"b"` // Best bid price
-	AskPrice  string `json:"a"` // Best ask price
+type BinanceCombinedResponse struct {
+	Stream string       `json:"stream"`
+	Data   BinanceTrade `json:"data"`
+}
+
+type BinanceTrade struct {
+	EventType string `json:"e"`
+	EventTime int64  `json:"E"`
+	Symbol    string `json:"s"`
+	Price     string `json:"p"` // توجه: بایننس دیتا را به صورت String می‌فرستد
+	Quantity  string `json:"q"` // توجه: بایننس دیتا را به صورت String می‌فرستد
+	TradeTime int64  `json:"T"`
 }
 
 func main() {
@@ -57,7 +62,7 @@ func main() {
 	// writer := kafkaWriter(kafkaURL, kafkaTopic)
 	// defer writer.Close()
 
-	socketURL := "wss://stream.binance.com:9443/ws/btcusdt@trade"
+	socketURL := "wss://stream.binance.com:9443/stream?streams=btcusdt@aggTrade/ethusdt@aggTrade/solusdt@aggTrade/dogeusdt@aggTrade"
 	sconn, _, err := websocket.DefaultDialer.Dial(socketURL, nil)
 	if err != nil {
 		log.Fatalf("dial error.%v", err)
@@ -74,14 +79,14 @@ func main() {
 				log.Printf("Read error:%v", err)
 				return
 			}
-			var event BinanceTickerEvent
+			var event BinanceCombinedResponse
 			if err := json.Unmarshal(message, &event); err != nil {
 				log.Printf("JSON Unmarshal error: %v", err)
 				continue
 			}
 
-			log.Printf("[%s] Price: %s | Bid: %s | Ask: %s",
-				event.Symbol, event.LastPrice, event.BidPrice, event.AskPrice)
+			log.Printf("[%s] Price: %s | Quantity: %s | Time: %d",
+				event.Data.Symbol, event.Data.Price, event.Data.Quantity, event.Data.TradeTime)
 		}
 	}()
 
