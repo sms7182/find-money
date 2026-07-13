@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -48,19 +49,19 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 	fmt.Println("wtf yuhoooooao")
-	// ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	// defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
-	// kafkaURL := "localhost:9092"
-	// kafkaTopic := "test-raw-money"
-	// conn, err := kafka.DialLeader(ctx, "tcp", "localhost:9092", kafkaTopic, 0)
-	// if err != nil {
-	// 	panic("has error")
+	kafkaURL := "localhost:9092"
+	kafkaTopic := "test-raw-money"
+	conn, err := kafka.DialLeader(ctx, "tcp", "localhost:9092", kafkaTopic, 0)
+	if err != nil {
+		panic("has error")
 
-	// }
-	// conn.Close()
-	// writer := kafkaWriter(kafkaURL, kafkaTopic)
-	// defer writer.Close()
+	}
+	conn.Close()
+	writer := kafkaWriter(kafkaURL, kafkaTopic)
+	defer writer.Close()
 
 	socketURL := "wss://stream.binance.com:9443/stream?streams=btcusdt@aggTrade/ethusdt@aggTrade/solusdt@aggTrade/dogeusdt@aggTrade"
 	sconn, _, err := websocket.DefaultDialer.Dial(socketURL, nil)
@@ -113,15 +114,15 @@ func main() {
 			return
 		}
 	}
-	// vlbytes, _ := json.Marshal("okkkkkkkkk")
-	// msg := kafka.Message{
-	// 	Key:   []byte(fmt.Sprintf("address-ok")),
-	// 	Value: vlbytes,
-	// }
-	// err = writer.WriteMessages(ctx, msg)
-	// if err != nil {
-	// 	fmt.Println("has error,%s", err)
-	// }
-	// fmt.Println("without error")
+	vlbytes, _ := json.Marshal("okkkkkkkkk")
+	msg := kafka.Message{
+		Key:   []byte(fmt.Sprintf("address-ok")),
+		Value: vlbytes,
+	}
+	err = writer.WriteMessages(ctx, msg)
+	if err != nil {
+		fmt.Println("has error,%s", err)
+	}
+	fmt.Println("without error")
 
 }
