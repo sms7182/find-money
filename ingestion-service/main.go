@@ -53,7 +53,7 @@ func main() {
 	defer cancel()
 
 	kafkaURL := "localhost:9092"
-	kafkaTopic := "test-raw-money"
+	kafkaTopic := "raw-trades"
 	conn, err := kafka.DialLeader(ctx, "tcp", "localhost:9092", kafkaTopic, 0)
 	if err != nil {
 		panic("has error")
