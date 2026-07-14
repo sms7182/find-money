@@ -85,6 +85,14 @@ func main() {
 				log.Printf("JSON Unmarshal error: %v", err)
 				continue
 			}
+			msg := kafka.Message{
+				Key:   []byte(event.Data.Symbol),
+				Value: message,
+			}
+			err = writer.WriteMessages(ctx, msg)
+			if err != nil {
+				fmt.Printf("has error,%s", err)
+			}
 
 			log.Printf("[%s] Price: %s | Quantity: %s | Time: %d",
 				event.Data.Symbol, event.Data.Price, event.Data.Quantity, event.Data.TradeTime)
@@ -113,15 +121,6 @@ func main() {
 			}
 			return
 		}
-	}
-	vlbytes, _ := json.Marshal("okkkkkkkkk")
-	msg := kafka.Message{
-		Key:   []byte(fmt.Sprintf("address-ok")),
-		Value: vlbytes,
-	}
-	err = writer.WriteMessages(ctx, msg)
-	if err != nil {
-		fmt.Println("has error,%s", err)
 	}
 	fmt.Println("without error")
 
