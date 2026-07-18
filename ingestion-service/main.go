@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -48,25 +47,40 @@ type BinanceTrade struct {
 func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
-	fmt.Println("wtf yuhoooooao")
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
 
 	kafkaURL := "localhost:9092"
 	kafkaTopic := "raw-trades"
-	conn, err := kafka.DialLeader(ctx, "tcp", "localhost:9092", kafkaTopic, 0)
-	if err != nil {
-		panic("has error")
 
+	kafkaCtx, kafkaCancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	conn, err := kafka.DialLeader(
+		kafkaCtx,
+		"tcp",
+		kafkaURL,
+		kafkaTopic,
+		0,
+	)
+
+	kafkaCancel()
+
+	if err != nil {
+		log.Fatalf("Kafka connection error: %v", err)
 	}
+
 	conn.Close()
+	log.Println("Kafka connected")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	writer := kafkaWriter(kafkaURL, kafkaTopic)
 	defer writer.Close()
 
 	socketURL := "wss://stream.binance.com:9443/stream?streams=btcusdt@aggTrade/ethusdt@aggTrade/solusdt@aggTrade/dogeusdt@aggTrade"
+
 	sconn, _, err := websocket.DefaultDialer.Dial(socketURL, nil)
 	if err != nil {
-		log.Fatalf("dial error.%v", err)
+		log.Fatalf("Websocket dial error: %v", err)
 	}
 	defer sconn.Close()
 
@@ -74,54 +88,66 @@ func main() {
 
 	go func() {
 		defer close(done)
+
 		for {
 			_, message, err := sconn.ReadMessage()
 			if err != nil {
-				log.Printf("Read error:%v", err)
+				log.Printf("Websocket read error: %v", err)
 				return
 			}
+
 			var event BinanceCombinedResponse
 			if err := json.Unmarshal(message, &event); err != nil {
-				log.Printf("JSON Unmarshal error: %v", err)
+				log.Printf("JSON unmarshal error: %v", err)
 				continue
 			}
+
 			msg := kafka.Message{
 				Key:   []byte(event.Data.Symbol),
 				Value: message,
 			}
-			err = writer.WriteMessages(ctx, msg)
-			if err != nil {
-				fmt.Printf("has error,%s", err)
+
+			if err := writer.WriteMessages(ctx, msg); err != nil {
+				log.Printf("Kafka write error: %v", err)
+				return
 			}
 
-			log.Printf("[%s] Price: %s | Quantity: %s | Time: %d",
-				event.Data.Symbol, event.Data.Price, event.Data.Quantity, event.Data.TradeTime)
+			log.Printf(
+				"[%s] Price: %s | Quantity: %s | Time: %d",
+				event.Data.Symbol,
+				event.Data.Price,
+				event.Data.Quantity,
+				event.Data.TradeTime,
+			)
 		}
 	}()
 
 	for {
 		select {
 		case <-done:
+			log.Println("Websocket closed")
 			return
+
 		case <-interrupt:
-			log.Println("Interrupt received, closing connection gracefully...")
+			log.Println("Interrupt received, closing gracefully...")
+
+			cancel()
 
 			err := sconn.WriteMessage(
 				websocket.CloseMessage,
 				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
 			)
+
 			if err != nil {
-				log.Printf("Write close error: %v", err)
-				return
+				log.Printf("Websocket close error: %v", err)
 			}
 
 			select {
 			case <-done:
 			case <-time.After(time.Second):
 			}
+
 			return
 		}
 	}
-	fmt.Println("without error")
-
 }
