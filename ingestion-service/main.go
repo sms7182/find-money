@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	models "ingestion-service/ingestion"
 	"log"
 	"net/http"
 	"os"
@@ -28,20 +29,6 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
-}
-
-type BinanceCombinedResponse struct {
-	Stream string       `json:"stream"`
-	Data   BinanceTrade `json:"data"`
-}
-
-type BinanceTrade struct {
-	EventType string `json:"e"`
-	EventTime int64  `json:"E"`
-	Symbol    string `json:"s"`
-	Price     string `json:"p"`
-	Quantity  string `json:"q"`
-	TradeTime int64  `json:"T"`
 }
 
 func main() {
@@ -96,15 +83,19 @@ func main() {
 				return
 			}
 
-			var event BinanceCombinedResponse
+			var event models.BinanceCombinedResponse
 			if err := json.Unmarshal(message, &event); err != nil {
 				log.Printf("JSON unmarshal error: %v", err)
 				continue
 			}
-
+			b, err := json.Marshal(event.Data)
+			if err != nil {
+				log.Printf("json marshal of binance message data has error %v", err)
+				continue
+			}
 			msg := kafka.Message{
 				Key:   []byte(event.Data.Symbol),
-				Value: message,
+				Value: b,
 			}
 
 			if err := writer.WriteMessages(ctx, msg); err != nil {
