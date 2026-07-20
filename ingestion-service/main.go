@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	models "ingestion-service/ingestion"
+	"ingestion-service/contracts"
 	"log"
 	"net/http"
 	"os"
@@ -83,7 +83,7 @@ func main() {
 				return
 			}
 
-			var event models.BinanceCombinedResponse
+			var event contracts.BinanceCombinedResponse
 			if err := json.Unmarshal(message, &event); err != nil {
 				log.Printf("JSON unmarshal error: %v", err)
 				continue

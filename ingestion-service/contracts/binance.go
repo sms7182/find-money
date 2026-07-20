@@ -1,4 +1,4 @@
-package models
+package contracts
 
 type BinanceCombinedResponse struct {
 	Stream string       `json:"stream"`
