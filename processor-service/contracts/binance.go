@@ -1,5 +1,7 @@
 package contracts
 
+import "encoding/json"
+
 type BinanceTrade struct {
 	EventType string `json:"e"`
 	EventTime int64  `json:"E"`
@@ -10,5 +12,30 @@ type BinanceTrade struct {
 }
 
 type WindowState struct {
-	Trades []BinanceTrade
+	WindowStart int64          `json:"window_start"`
+	Trades      []BinanceTrade `json:"trades"`
+}
+
+type TradeCodec struct{}
+
+func (c *TradeCodec) Encode(value interface{}) ([]byte, error) {
+	return json.Marshal(value)
+}
+
+func (c *TradeCodec) Decode(data []byte) (interface{}, error) {
+	var trade BinanceTrade
+	err := json.Unmarshal(data, &trade)
+	return trade, err
+}
+
+type WindowStateCodec struct{}
+
+func (c *WindowStateCodec) Encode(value interface{}) ([]byte, error) {
+	return json.Marshal(value)
+}
+
+func (c *WindowStateCodec) Decode(data []byte) (interface{}, error) {
+	var state WindowState
+	err := json.Unmarshal(data, &state)
+	return &state, err
 }

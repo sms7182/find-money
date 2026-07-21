@@ -10,7 +10,7 @@ import (
 var (
 	brokers             = []string{"localhost:9092"}
 	topic   goka.Stream = "raw-trades"
-	groupB  goka.Group  = "grp-btc"
+	group   goka.Group  = "aggregate-group"
 	tmc     *goka.TopicManagerConfig
 )
 
@@ -21,13 +21,31 @@ func init() {
 }
 func main() {
 
-    cb:=func(ctx goka.Context,msg interface{}){
-		var binanceTrades []contracts.BinanceTrade
-		if val:=ctx.Value();val!=nil{
-			binanceTrades=val.([]contracts.BinanceTrade)
+	cb := func(ctx goka.Context, msg interface{}) {
+		trade := msg.(contracts.BinanceTrade)
+
+		var windowState *contracts.WindowState
+		if val := ctx.Value(); val != nil {
+			windowState = val.(*contracts.WindowState)
 		}
-		binanceTrades = append(binanceTrades, msg.(contracts.BinanceTrade))
-		ctx.SetValue(binanceTrades)
-		log.Printf("key =%s added binance %v",ctx.Key(),msg.(contracts.BinanceTrade).)
+
+		if windowState == nil {
+			windowState = &contracts.WindowState{
+				WindowStart: trade.TradeTime,
+				Trades:      []contracts.BinanceTrade{trade},
+			}
+		}
+		windowDuration := int64(10 * 1000)
+		if trade.TradeTime-windowState.WindowStart < windowDuration {
+			windowState.Trades = append(windowState.Trades, trade)
+			ctx.SetValue(windowState)
+		} else {
+			windowState.WindowStart = trade.TradeTime
+			windowState.Trades = []contracts.BinanceTrade{trade}
+			ctx.SetValue(windowState)
+		}
+		log.Printf("key =%s added binance %v", ctx.Key(), msg.(contracts.BinanceTrade).Symbol)
+
 	}
+	goka.DefineGroup(group, goka.Input(topic, new(contracts.TradeCodec), cb), goka.Persist(new(contracts.WindowStateCodec)), goka.Output("aggregated-trades", new(contracts.WindowStateCodec)))
 }

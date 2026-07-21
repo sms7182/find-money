@@ -29,6 +29,4 @@ go.work.sum
 connectors/
 .vscode/
 main
-ingestion-service
-processor-service
 # Logs and temp
