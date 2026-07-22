@@ -39,3 +39,21 @@ func (c *WindowStateCodec) Decode(data []byte) (interface{}, error) {
 	err := json.Unmarshal(data, &state)
 	return &state, err
 }
+
+type AggregatedTrade struct {
+	Symbol      string  `json:"symbol"`
+	TotalVolume float64 `json:"total_volume"`
+	TradeCount  int     `json:"trade_count"`
+	WindowStart int64   `json:"window_start"`
+	WindowEnd   int64   `json:"window_end"`
+}
+
+func (c *AggregatedTrade) Encode(value interface{}) ([]byte, error) {
+	return json.Marshal(value)
+}
+
+func (c *AggregatedTrade) Decode(data []byte) (interface{}, error) {
+	var agg AggregatedTrade
+	err := json.Unmarshal(data, &agg)
+	return &agg, err
+}

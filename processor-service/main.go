@@ -15,10 +15,21 @@ var (
 )
 
 func init() {
+
 	tmc = goka.NewTopicManagerConfig()
 	tmc.Table.Replication = 1
 	tmc.Stream.Replication = 1
+	tm, err := goka.NewTopicManager(brokers, goka.DefaultConfig(), tmc)
+	if err != nil {
+		log.Fatalf("error creating topic manager :%v", err)
+	}
+	defer tm.Close()
+	err = tm.EnsureStreamExists("aggregated-trades", 8)
+	if err != nil {
+		log.Fatalf("Error creating output topic:%v", err)
+	}
 }
+
 func main() {
 
 	cb := func(ctx goka.Context, msg interface{}) {
@@ -47,5 +58,11 @@ func main() {
 		log.Printf("key =%s added binance %v", ctx.Key(), msg.(contracts.BinanceTrade).Symbol)
 
 	}
-	goka.DefineGroup(group, goka.Input(topic, new(contracts.TradeCodec), cb), goka.Persist(new(contracts.WindowStateCodec)), goka.Output("aggregated-trades", new(contracts.WindowStateCodec)))
+
+	goka.DefineGroup(
+		group,
+		goka.Input(topic, new(contracts.TradeCodec), cb),
+		goka.Persist(new(contracts.WindowStateCodec)),
+		goka.Output("aggregated-trades", new(contracts.AggregatedTrade)),
+	)
 }
